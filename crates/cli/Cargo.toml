@@ -1,0 +1,45 @@
+[package]
+name = "agent-ssh-cli"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+description = "Security-first SSH broker — run named commands on named servers without exposing credentials"
+keywords = ["ssh", "broker", "security", "agent"]
+categories = ["command-line-utilities", "authentication"]
+
+[dependencies]
+agent-ssh-broker.workspace = true
+agent-ssh-common.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[[bin]]
+name = "agent-ssh"
+path = "src/main.rs"
+
+# cargo-deb metadata — used by the release workflow to build .deb packages.
+[package.metadata.deb]
+name            = "agent-ssh"
+maintainer      = "aibunny"
+copyright       = "MIT"
+license-file    = ["../../LICENSE", "4"]
+extended-description = """\
+agent-ssh is a security-first SSH broker.  Operators define named servers and
+named command profiles in a TOML configuration file.  Callers request an
+audited, policy-checked execution plan for a specific server/profile pair
+without ever receiving passwords or long-lived SSH keys."""
+section         = "utils"
+priority        = "optional"
+assets          = [
+    ["target/release/agent-ssh", "usr/bin/", "755"],
+]
+
+[lints]
+workspace = true

@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "crates/common",
+    "crates/broker",
+    "crates/cli",
+    "crates/mcp",
+]
+resolver = "2"
+
+[workspace.package]
+authors = ["aibunny"]
+edition = "2024"
+homepage = "https://github.com/aibunny/agent-ssh"
+license = "MIT"
+repository = "https://github.com/aibunny/agent-ssh"
+rust-version = "1.90"
+version = "0.1.0"
+
+[workspace.dependencies]
+agent-ssh-broker = { package = "agent-ssh-broker", path = "crates/broker" }
+agent-ssh-common = { package = "agent-ssh-common", path = "crates/common" }
+agent-ssh-mcp = { package = "agent-ssh-mcp", path = "crates/mcp" }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.15"
+thiserror = "2.0"
+time = { version = "0.3", features = ["formatting", "macros", "parsing", "serde", "std"] }
+toml = "0.8"
+uuid = { version = "1.11", features = ["serde", "v4"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"

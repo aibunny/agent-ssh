@@ -1,0 +1,76 @@
+[broker]
+cert_ttl_seconds = 120
+audit_log_path = "./data/audit.jsonl"
+default_signer = "step_ca"
+
+[signers.step_ca]
+kind = "step-ca"
+ca_url = "https://ca.internal.example"
+provisioner = "agent-ssh"
+subject = "agent-ssh-broker"
+
+[servers.staging-api]
+host = "10.0.1.10"
+port = 22
+user = "deploy"
+environment = "staging"
+allowed_profiles = ["logs", "disk", "ps"]
+
+[servers.prod-web-1]
+host = "10.0.10.21"
+port = 22
+user = "deploy"
+environment = "production"
+allowed_profiles = ["logs", "disk"]
+requires_approval = true
+
+# Discouraged root-login exception:
+# [servers.breakglass-root]
+# host = "10.0.30.40"
+# port = 22
+# user = "root"
+# root_login_acknowledged = true
+# environment = "recovery"
+# allowed_profiles = ["disk"]
+
+[servers.db-backup]
+host = "10.0.20.30"
+port = 22
+user = "backup"
+environment = "production"
+allowed_profiles = ["disk"]
+requires_approval = true
+
+# Optional legacy password compatibility server.
+# Store only an opaque reference in a sibling .env file, for example:
+# AGENT_SSH_LEGACY_WEB_PASSWORD_REF=os_keychain:agent-ssh:legacy-web
+#
+# [servers.legacy-web]
+# host = "10.0.20.5"
+# port = 22
+# user = "deploy"
+# environment = "migration"
+# allowed_profiles = ["logs"]
+# auth_method = "legacy_password"
+# password_secret_ref_env_var = "AGENT_SSH_LEGACY_WEB_PASSWORD_REF"
+# legacy_password_acknowledged = true
+# fail2ban_allowlist_confirmed = true
+
+[profiles.logs]
+description = "View service logs"
+template = "journalctl -u {{service}} --since {{since}} --no-pager"
+
+[profiles.disk]
+description = "Show disk usage"
+template = "df -h"
+
+[profiles.ps]
+description = "List running processes"
+template = "ps aux"
+
+# Operational note:
+# agent-ssh defaults to publickey-only non-interactive SSH. Legacy password
+# compatibility is opt-in, approval-gated, and uses a single askpass-driven
+# password attempt. If your infrastructure uses fail2ban and routes broker
+# traffic through fixed egress IPs, allowlist those IPs/CIDRs in fail2ban's
+# ignoreip setting on the remote hosts.

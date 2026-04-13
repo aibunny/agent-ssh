@@ -1,0 +1,15 @@
+[package]
+name = "agent-ssh-mcp"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+agent-ssh-broker.workspace = true
+
+[lints]
+workspace = true
