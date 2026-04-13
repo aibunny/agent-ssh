@@ -15,7 +15,7 @@ class AgentSsh < Formula
   desc "Security-first SSH broker — run named commands on named servers without exposing credentials"
   homepage "https://github.com/aibunny/agent-ssh"
   license "MIT"
-  version "0.1.0"
+  version "0.1.1"
 
   # ---------------------------------------------------------------------------
   # Prebuilt binaries — updated automatically by the release workflow.
@@ -24,20 +24,20 @@ class AgentSsh < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/aibunny/agent-ssh/releases/download/v#{version}/agent-ssh-aarch64-apple-darwin.tar.gz"
-      sha256 "PLACEHOLDER_MACOS_ARM64"
+      sha256 "a1574f54b68acd3f58d6d445dc103e290aa624cbfab7e7e4aecbbf150492109d"
     else
       url "https://github.com/aibunny/agent-ssh/releases/download/v#{version}/agent-ssh-x86_64-apple-darwin.tar.gz"
-      sha256 "PLACEHOLDER_MACOS_X86_64"
+      sha256 "0472bcbb58c48130a95e6f92291e07bc77db67d1082e4a66c191ef386e1fa567"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/aibunny/agent-ssh/releases/download/v#{version}/agent-ssh-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "PLACEHOLDER_LINUX_ARM64"
+      sha256 "c3d366949b37314c091d670a8f6101b8f206c69d7bf91014d7d7072c79d21bf6"
     else
       url "https://github.com/aibunny/agent-ssh/releases/download/v#{version}/agent-ssh-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "PLACEHOLDER_LINUX_X86_64"
+      sha256 "b627d46d320e9f4a620e9409b1e77c76ee60ab9c2571d8343790c16be7727058"
     end
   end
 
