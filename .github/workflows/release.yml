@@ -3,13 +3,12 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*" # e.g. v0.1.0
+      - "v*.*.*"
 
 permissions:
   contents: write
 
 jobs:
-  # ── Build prebuilt binaries ──────────────────────────────────────────────────
   build:
     name: build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -19,111 +18,142 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
-            archive: tar.gz
+            archive_ext: tar.gz
             deb: true
+            cross: false
+
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-22.04
-            archive: tar.gz
-            deb: true
+            archive_ext: tar.gz
+            deb: false
             cross: true
+
           - target: x86_64-apple-darwin
             os: macos-14
-            archive: tar.gz
+            archive_ext: tar.gz
+            deb: false
+            cross: false
+
           - target: aarch64-apple-darwin
             os: macos-14
-            archive: tar.gz
+            archive_ext: tar.gz
+            deb: false
+            cross: false
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross (for cross-compilation)
-        if: matrix.cross
+      - name: Install cross
+        if: matrix.cross == true
         run: cargo install cross --locked
 
-      - name: Install cargo-deb (for .deb packages)
-        if: matrix.deb
+      - name: Install cargo-deb
+        if: matrix.deb == true
         run: cargo install cargo-deb --locked
 
       - name: Build binary
+        shell: bash
         run: |
+          set -euo pipefail
           if [ "${{ matrix.cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }} -p agent-ssh-cli
+            cross build --release --locked --target "${{ matrix.target }}" -p agent-ssh-cli
           else
-            cargo build --release --target ${{ matrix.target }} -p agent-ssh-cli
+            cargo build --release --locked --target "${{ matrix.target }}" -p agent-ssh-cli
           fi
 
       - name: Build .deb package
-        if: matrix.deb
+        if: matrix.deb == true
+        shell: bash
         run: |
-          cargo deb --target ${{ matrix.target }} -p agent-ssh-cli --no-build
+          set -euo pipefail
+          cargo deb --target "${{ matrix.target }}" -p agent-ssh-cli --no-build --no-strip
           mkdir -p dist
           cp target/${{ matrix.target }}/debian/*.deb dist/
 
-      - name: Create .tar.gz archive
+      - name: Create tar.gz archive
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          BINARY=target/${{ matrix.target }}/release/agent-ssh
-          ARCHIVE=dist/agent-ssh-${{ matrix.target }}.tar.gz
-          tar -czf "$ARCHIVE" -C "$(dirname $BINARY)" agent-ssh
-          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
+          BINARY="target/${{ matrix.target }}/release/agent-ssh"
+          ARCHIVE="dist/agent-ssh-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          tar -czf "$ARCHIVE" -C "$(dirname "$BINARY")" agent-ssh
 
-      - name: Compute SHA256
+      - name: Generate per-job checksums
+        shell: bash
         run: |
-          shasum -a 256 dist/*.tar.gz dist/*.deb 2>/dev/null || true
+          set -euo pipefail
+          cd dist
+          shasum -a 256 * > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.target }}
-          path: dist/
+          path: dist/*
+          if-no-files-found: error
 
-  # ── Create GitHub release ─────────────────────────────────────────────────────
   release:
     name: publish release
     runs-on: ubuntu-22.04
     needs: build
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist/
+          path: dist
           merge-multiple: true
 
-      - name: Generate checksums file
+      - name: Show downloaded files
+        shell: bash
         run: |
+          set -euo pipefail
+          find dist -maxdepth 2 -type f | sort
+
+      - name: Generate release checksums
+        shell: bash
+        run: |
+          set -euo pipefail
           cd dist
+          rm -f SHA256SUMS
           shasum -a 256 * > SHA256SUMS
           cat SHA256SUMS
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**
+          files: |
+            dist/*
           generate_release_notes: true
           body: |
             ## Installation
 
-            ### Homebrew (macOS / Linux)
+            ### Homebrew
             ```sh
             brew tap aibunny/agent-ssh https://github.com/${{ github.repository }}
-            brew install agent-ssh
+            brew install aibunny/agent-ssh/agent-ssh
             ```
 
-            ### apt (Debian / Ubuntu)
+            ### Debian / Ubuntu
             ```sh
-            # Download the .deb for your architecture then:
-            sudo dpkg -i agent-ssh_*_amd64.deb   # Intel/AMD
-            sudo dpkg -i agent-ssh_*_arm64.deb   # ARM
+            sudo dpkg -i agent-ssh_*_amd64.deb
             ```
 
-            ### One-line installer (all platforms)
+            ### Manual binary install
+            Download the archive for your platform from this release, extract it, and place `agent-ssh` in your PATH.
+
+            ### One-line installer
             ```sh
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | sh
             ```
@@ -133,44 +163,88 @@ jobs:
             cargo install --git https://github.com/${{ github.repository }} agent-ssh-cli
             ```
 
-  # ── Update Homebrew formula SHA256s ──────────────────────────────────────────
   update-formula:
     name: update Homebrew formula
     runs-on: ubuntu-22.04
     needs: release
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Download artifacts
+      - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist/
+          path: dist
           merge-multiple: true
 
-      - name: Update formula SHA256s
+      - name: Show formula inputs
+        shell: bash
         run: |
+          set -euo pipefail
+          find dist -maxdepth 2 -type f | sort
+
+      - name: Update formula SHA256 values
+        shell: bash
+        run: |
+          set -euo pipefail
+
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
-          for target in x86_64-apple-darwin aarch64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
-            ARCHIVE="dist/agent-ssh-${target}.tar.gz"
-            if [ -f "$ARCHIVE" ]; then
-              SHA=$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')
-              case "$target" in
-                aarch64-apple-darwin) PLACEHOLDER="PLACEHOLDER_MACOS_ARM64" ;;
-                x86_64-apple-darwin) PLACEHOLDER="PLACEHOLDER_MACOS_X86_64" ;;
-                aarch64-unknown-linux-gnu) PLACEHOLDER="PLACEHOLDER_LINUX_ARM64" ;;
-                x86_64-unknown-linux-gnu) PLACEHOLDER="PLACEHOLDER_LINUX_X86_64" ;;
-                *) echo "unknown target for formula update: $target" >&2; exit 1 ;;
-              esac
-              sed -i "s/$PLACEHOLDER/$SHA/" Formula/agent-ssh.rb
-            fi
-          done
-          sed -i "s/^  version \".*\"$/  version \"${VERSION}\"/" Formula/agent-ssh.rb
+
+          sha_for() {
+            local file="$1"
+            shasum -a 256 "$file" | awk '{print $1}'
+          }
+
+          MACOS_ARM64_ARCHIVE="dist/agent-ssh-aarch64-apple-darwin.tar.gz"
+          MACOS_X86_64_ARCHIVE="dist/agent-ssh-x86_64-apple-darwin.tar.gz"
+          LINUX_ARM64_ARCHIVE="dist/agent-ssh-aarch64-unknown-linux-gnu.tar.gz"
+          LINUX_X86_64_ARCHIVE="dist/agent-ssh-x86_64-unknown-linux-gnu.tar.gz"
+
+          [ -f "$MACOS_ARM64_ARCHIVE" ]
+          [ -f "$MACOS_X86_64_ARCHIVE" ]
+          [ -f "$LINUX_ARM64_ARCHIVE" ]
+          [ -f "$LINUX_X86_64_ARCHIVE" ]
+
+          MACOS_ARM64_SHA="$(sha_for "$MACOS_ARM64_ARCHIVE")"
+          MACOS_X86_64_SHA="$(sha_for "$MACOS_X86_64_ARCHIVE")"
+          LINUX_ARM64_SHA="$(sha_for "$LINUX_ARM64_ARCHIVE")"
+          LINUX_X86_64_SHA="$(sha_for "$LINUX_X86_64_ARCHIVE")"
+
+          python3 - <<PY
+          from pathlib import Path
+          import re
+
+          path = Path("Formula/agent-ssh.rb")
+          text = path.read_text()
+
+          replacements = {
+              "PLACEHOLDER_MACOS_ARM64": "${MACOS_ARM64_SHA}",
+              "PLACEHOLDER_MACOS_X86_64": "${MACOS_X86_64_SHA}",
+              "PLACEHOLDER_LINUX_ARM64": "${LINUX_ARM64_SHA}",
+              "PLACEHOLDER_LINUX_X86_64": "${LINUX_X86_64_SHA}",
+          }
+
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+
+          text = re.sub(
+              r'(^\\s*version\\s+")([^"]+)(")',
+              rf'\\g<1>${VERSION}\\g<3>',
+              text,
+              flags=re.MULTILINE,
+          )
+
+          path.write_text(text)
+          PY
 
       - name: Commit formula update
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/agent-ssh.rb
