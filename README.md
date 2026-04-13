@@ -74,6 +74,9 @@ cargo build --release -p agent-ssh-cli
 # Binary is at: target/release/agent-ssh
 ```
 
+The current checked-in project version is `0.1.0`, so the first release tag
+should be `v0.1.0`.
+
 ---
 
 ## Quick start

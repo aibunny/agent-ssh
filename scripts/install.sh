@@ -11,7 +11,7 @@
 #
 # Environment variables:
 #   INSTALL_DIR   Override the installation directory (default: /usr/local/bin)
-#   VERSION       Install a specific version tag, e.g. v0.2.0 (default: latest)
+#   VERSION       Install a specific version tag, e.g. v0.1.0 (default: latest)
 #   GITHUB_REPO   Override the repository (default: aibunny/agent-ssh)
 
 set -eu
