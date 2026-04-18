@@ -57,6 +57,9 @@ pub struct ServerConfig {
     pub signer: Option<SignerName>,
     pub auth_method: AuthMethod,
     pub legacy_password: Option<LegacyPasswordConfig>,
+    /// Whether unrestricted interactive sessions are allowed for this server.
+    /// Requires `requires_approval = true` to be effective.
+    pub allow_unrestricted_sessions: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +139,8 @@ struct RawServerConfig {
     /// Explicit operator acknowledgment that fail2ban allowlisting must be
     /// handled on the remote side for this server.
     fail2ban_allowlist_confirmed: Option<bool>,
+    /// Whether unrestricted interactive sessions are allowed for this server.
+    allow_unrestricted_sessions: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -435,6 +440,9 @@ fn validate_config(raw: RawConfig) -> Result<Config, ValidationError> {
                             signer,
                             auth_method,
                             legacy_password: None,
+                            allow_unrestricted_sessions: server
+                                .allow_unrestricted_sessions
+                                .unwrap_or(false),
                         },
                     );
                     continue;
@@ -474,6 +482,7 @@ fn validate_config(raw: RawConfig) -> Result<Config, ValidationError> {
                 signer,
                 auth_method,
                 legacy_password,
+                allow_unrestricted_sessions: server.allow_unrestricted_sessions.unwrap_or(false),
             },
         );
     }

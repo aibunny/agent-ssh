@@ -41,6 +41,9 @@ name = "agent-ssh-mcp"
 version = "0.1.0"
 dependencies = [
  "agent-ssh-broker",
+ "agent-ssh-common",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

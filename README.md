@@ -2,10 +2,13 @@
 
 A security-first SSH broker written in Rust. Define named servers and named
 command profiles once in a TOML file; then any caller — human or AI agent —
-can run those exact commands and **always see the full output**, without ever
-touching a raw password or long-lived SSH key. The secure default is
-certificate-oriented; a separate legacy compatibility lane can use broker-owned
-secret references for older hosts without exposing plaintext to the caller.
+can run those exact commands and **always see the full output** without ever
+touching a raw password or long-lived SSH key. For multi-step agent workflows,
+specific servers can also opt into approval-gated unrestricted sessions that
+reuse a broker-held SSH connection instead of reconnecting on every command.
+The secure default is certificate-oriented; a separate legacy compatibility
+lane can use broker-owned secret references for older hosts without exposing
+plaintext to the caller.
 
 ```
 $ agent-ssh exec --server staging-api --profile logs \
@@ -19,8 +22,9 @@ Apr 12 10:00:02 staging api[1234]: listening on :8080
 
 ## Contents
 
+- [What it does](#what-it-does)
 - [Install](#install)
-- [Quick start (5 minutes)](#quick-start)
+- [Setup and use](#setup-and-use)
 - [Configuration reference](#configuration-reference)
 - [CLI reference](#cli-reference)
 - [Legacy password compatibility](#legacy-password-compatibility)
@@ -28,6 +32,14 @@ Apr 12 10:00:02 staging api[1234]: listening on :8080
 - [Fail2ban guidance](#fail2ban-guidance)
 - [Audit log](#audit-log)
 - [Security model](#security-model)
+
+---
+
+## What it does
+
+- Maps friendly server aliases to real SSH targets so agents never need raw host details.
+- Runs approved named profiles by default and always returns stdout, stderr, and exit code.
+- Supports approval-gated unrestricted sessions for multi-step agent work that should reuse one broker-held SSH connection.
 
 ---
 
@@ -79,7 +91,7 @@ should be `v0.1.0`.
 
 ---
 
-## Quick start
+## Setup and use
 
 **Step 1 — create a starter config**
 
@@ -96,18 +108,10 @@ Open it and fill in the values marked `<CHANGE ME>`.
 agent-ssh config validate
 ```
 
-**Step 3 — list your servers**
+**Step 3 — run a named profile**
 
-```sh
-agent-ssh hosts list
-```
-
-```
-staging-api    environment=staging     user=deploy    requires_approval=false
-prod-web-1     environment=production  user=deploy    requires_approval=true
-```
-
-**Step 4 — run a command and see the output**
+This is the default path: the server chooses which profiles are allowed, and
+the caller gets the full response back.
 
 ```sh
 agent-ssh exec --server staging-api --profile disk
@@ -120,7 +124,42 @@ Filesystem      Size  Used Avail Use% Mounted on
 --- exit 0 ---
 ```
 
-Every execution is recorded in the audit log (`./data/audit.jsonl` by default).
+**Step 4 — inspect available hosts and profiles when needed**
+
+```sh
+agent-ssh hosts list
+agent-ssh profiles list --server staging-api
+```
+
+```
+staging-api    environment=staging     user=deploy    requires_approval=false
+prod-web-1     environment=production  user=deploy    requires_approval=true
+```
+
+**Step 5 — if an agent needs arbitrary commands, open a broker-held session**
+
+First, opt the server in with:
+
+```toml
+requires_approval = true
+allow_unrestricted_sessions = true
+```
+
+Then:
+
+```sh
+agent-ssh session open --server prod-web-1 --mode unrestricted --approval CAB-1234
+agent-ssh session exec --session <session-id> --cmd "uname -a"
+```
+
+```
+--- agent-ssh session exec: <session-id> ---
+Linux prod-web-1 6.8.0 #1 SMP ...
+--- exit 0 ---
+```
+
+Every run and every session command is recorded in the audit log
+(`./data/audit.jsonl` by default).
 
 ---
 
@@ -169,6 +208,7 @@ user             = "deploy"
 environment      = "production"
 allowed_profiles = ["logs"]
 requires_approval = true          # every exec needs --approval <ref>
+# allow_unrestricted_sessions = true   # optional; enables approval-gated arbitrary-command sessions
 
 # Optional legacy password compatibility server.
 # The password itself must not be stored in TOML or .env.
@@ -207,6 +247,7 @@ template    = "df -h"
 | `port` | 1–65535, defaults to 22 |
 | `cert_ttl_seconds` | 1–3600 |
 | `auth_method` | Optional; `certificate` is the secure default, `legacy_password` is compatibility-only |
+| `allow_unrestricted_sessions` | Optional; when `true`, agents may open `session --mode unrestricted` on that server, but only if `requires_approval = true` |
 | `password_secret_ref_env_var` | Required only for `legacy_password`; must name an env var whose value is an opaque reference like `os_keychain:agent-ssh:legacy-web` |
 | `template` | Safe literal tokens + `{{placeholder}}` only, max 4096 chars |
 | Argument values at runtime | No control characters, max 4096 chars |
@@ -337,6 +378,9 @@ Exit code of `agent-ssh exec` mirrors the remote command's exit code:
 - `0` — command succeeded
 - non-zero — command failed (the exit code is the remote command's exit code)
 
+For multi-step agent workflows, use `agent-ssh session` so the broker keeps
+one SSH ControlMaster connection open and multiplexes later commands over it.
+
 #### `--dry-run`
 
 Show the exact SSH invocation without executing it.
@@ -353,6 +397,65 @@ dry-run: would execute the following SSH command:
 target:  deploy@10.0.1.10:22
 command: df -h
 ```
+
+---
+
+### `agent-ssh session`
+
+Persistent broker-held sessions are the path for agents that need to run
+arbitrary commands while avoiding a fresh SSH connection on every step.
+
+First, opt the server in:
+
+```toml
+[servers.prod-web-1]
+host = "10.0.10.21"
+user = "deploy"
+environment = "production"
+allowed_profiles = ["logs"]
+requires_approval = true
+allow_unrestricted_sessions = true
+```
+
+Then open an unrestricted session:
+
+```sh
+agent-ssh session open \
+  --server prod-web-1 \
+  --mode unrestricted \
+  --approval CAB-1234
+```
+
+```
+1f9c9e7e-0d6d-4c0c-bb4f-2d6a1a5197b6
+session opened: 1f9c9e7e-0d6d-4c0c-bb4f-2d6a1a5197b6 on prod-web-1 (mode=unrestricted, ttl=300s, idle_timeout=60s)
+```
+
+Run any command you need over the existing brokered connection:
+
+```sh
+agent-ssh session exec \
+  --session 1f9c9e7e-0d6d-4c0c-bb4f-2d6a1a5197b6 \
+  --cmd "uname -a && whoami && pwd"
+```
+
+```
+--- agent-ssh session exec: 1f9c9e7e-0d6d-4c0c-bb4f-2d6a1a5197b6 ---
+Linux prod-web-1 6.8.0 #1 SMP ...
+deploy
+/home/deploy
+--- exit 0 ---
+```
+
+List or close sessions when you are done:
+
+```sh
+agent-ssh session list
+agent-ssh session close 1f9c9e7e-0d6d-4c0c-bb4f-2d6a1a5197b6
+```
+
+Restricted sessions are also available. In that mode, `session exec` still
+uses named profiles instead of raw `--cmd`.
 
 ---
 
@@ -451,10 +554,11 @@ Each line is a complete JSON record:
 ```
 
 Possible `action` values: `config_validate`, `hosts_list`, `profiles_list`,
-`run_plan`, `run_execute`.
+`run_plan`, `run_execute`, `session_open`, `session_close`, `session_expire`,
+`session_command`.
 
 Possible `outcome` values: `succeeded`, `blocked`, `invalid`, `planned`,
-`executed`, `failed`.
+`executed`, `failed`, `denied`, `expired`.
 
 Note: `run_execute` always follows a `run_plan` event for the same request —
 you get two audit events per `exec` invocation.
@@ -466,7 +570,7 @@ you get two audit events per `exec` invocation.
 | Property | How it's enforced |
 |----------|-------------------|
 | Discouraged root login | `user = "root"` requires `root_login_acknowledged = true` so the exception stays explicit and reviewable |
-| No free-form shell | Only profiles from `allowed_profiles` can run; no arbitrary commands |
+| No implicit free-form shell | `exec` stays profile-based; arbitrary commands are allowed only in explicit unrestricted sessions with `allow_unrestricted_sessions = true` and `requires_approval = true` |
 | No shell injection | Template literals are whitelisted; placeholder values are single-quoted |
 | No null/control chars | Argument values containing control characters are rejected |
 | No overlong inputs | Identifiers ≤64, hosts ≤253, usernames ≤32, templates/values ≤4096 chars |

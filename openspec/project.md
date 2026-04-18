@@ -8,7 +8,7 @@ Build a highly secure Rust-based SSH broker that lets agentic AI systems access 
 
 - Broker implementation MUST be Rust only.
 - Configuration MUST be TOML only.
-- The first secure release MUST use named server aliases and named command profiles instead of arbitrary shell execution.
+- The secure default MUST use named server aliases and named command profiles; arbitrary shell execution MAY exist only inside explicit approval-gated unrestricted sessions.
 - The broker MUST default to deny on ambiguous, missing, or unsafe input.
 - The broker MUST never rely on password authentication. Root login MAY be used only as an explicit break-glass exception, remains strongly discouraged, and must not change the default certificate-first policy.
 - The broker MUST be designed around short-lived SSH certificates and broker-owned execution.
@@ -28,7 +28,7 @@ Build a highly secure Rust-based SSH broker that lets agentic AI systems access 
 - `crates/common`: shared domain types, configuration parsing, validation, and errors.
 - `crates/broker`: policy evaluation, alias resolution, profile rendering, signer abstraction, approvals, and audit orchestration.
 - `crates/cli`: end-user CLI surface.
-- `crates/mcp`: future agent-facing interface layer.
+- `crates/mcp`: agent-facing interface layer.
 
 ## Security Conventions
 

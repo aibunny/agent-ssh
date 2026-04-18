@@ -9,7 +9,7 @@
 - `agent-ssh-common`: config types, domain identifiers, validation, and shared error types
 - `agent-ssh-broker`: alias registry, policy checks, safe profile rendering, signer abstraction, approval handling, and audit logging
 - `agent-ssh-cli`: command-line interface for validation, inspection, and run planning
-- `agent-ssh-mcp`: future agent-facing interface layer
+- `agent-ssh-mcp`: agent-facing wrapper that loads config, persists audit events, and exposes broker/session helpers
 
 ## Request Flow
 
@@ -20,6 +20,10 @@
 5. Broker renders the profile template using validated placeholder arguments.
 6. Broker writes a structured audit event.
 7. The executor runs system OpenSSH using the auth mode configured for that server.
+
+For persistent agent workflows, the agent-facing layer opens a broker-held
+ControlMaster session once, then multiplexes later commands over that same SSH
+connection until the session is closed or expires.
 
 ## Security Boundaries
 

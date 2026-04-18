@@ -3,6 +3,7 @@ mod error;
 pub mod executor;
 mod planner;
 mod render;
+pub mod session;
 mod signer;
 
 pub use audit::AuditLogger;
@@ -11,4 +12,5 @@ pub use executor::{CommandOutput, describe_invocation, execute_plan};
 pub use planner::{
     AuditedOutcome, Broker, ExecutionMode, HostSummary, ProfileSummary, RunPlan, RunRequest,
 };
+pub use session::{OpenSessionRequest, SessionExecRequest, SessionManager};
 pub use signer::{SignedSessionMaterial, Signer, SignerFailure, SigningRequest};

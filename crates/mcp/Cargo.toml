@@ -10,6 +10,11 @@ version.workspace = true
 
 [dependencies]
 agent-ssh-broker.workspace = true
+agent-ssh-common.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

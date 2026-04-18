@@ -2,6 +2,7 @@ mod audit;
 mod config;
 mod error;
 mod identifiers;
+pub mod session;
 
 pub use audit::{AuditAction, AuditEvent, AuditOutcome};
 pub use config::{
@@ -10,3 +11,4 @@ pub use config::{
 };
 pub use error::{ConfigError, ValidationError};
 pub use identifiers::{ProfileName, ServerAlias, SignerName};
+pub use session::{SessionMode, SessionRecord};

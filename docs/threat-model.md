@@ -9,7 +9,7 @@
 
 ## Trust Boundaries
 
-- Untrusted caller input enters through the CLI or a future agent-facing layer.
+- Untrusted caller input enters through the CLI or the agent-facing layer.
 - Configuration is trusted operator input but still validated because mistakes can weaken policy.
 - Signer backends are privileged dependencies and must remain broker-controlled.
 - Remote SSH servers are separate trust domains that must be configured to trust the broker’s user CA.

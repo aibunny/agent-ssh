@@ -11,6 +11,14 @@ pub enum AuditAction {
     ProfilesList,
     RunPlan,
     RunExecute,
+    /// A broker-controlled interactive session was opened.
+    SessionOpen,
+    /// A broker-controlled interactive session was closed by the caller.
+    SessionClose,
+    /// A broker-controlled interactive session was expired by the broker.
+    SessionExpire,
+    /// A command was executed within a broker-controlled interactive session.
+    SessionCommand,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -25,6 +33,10 @@ pub enum AuditOutcome {
     Executed,
     /// Broker could not initiate the SSH connection (not a remote command failure).
     Failed,
+    /// Request was explicitly denied by session policy.
+    Denied,
+    /// A session or resource expired due to TTL or idle timeout.
+    Expired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -46,6 +58,8 @@ pub struct AuditEvent {
     pub transport: Option<String>,
     /// The auth method kind label for the run (for example, "certificate").
     pub auth_method_kind: Option<String>,
-    /// Exit code from the remote command. Present only for `run_execute` events.
+    /// Exit code from the remote command. Present only for `run_execute` and `session_command` events.
     pub exit_code: Option<i32>,
+    /// Session ID for session-scoped events.
+    pub session_id: Option<String>,
 }

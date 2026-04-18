@@ -23,6 +23,7 @@ user = "deploy"
 environment = "production"
 allowed_profiles = ["logs", "disk"]
 requires_approval = true
+# allow_unrestricted_sessions = true  # optional: lets agents open approval-gated arbitrary-command sessions
 
 # Discouraged root-login exception:
 # [servers.breakglass-root]

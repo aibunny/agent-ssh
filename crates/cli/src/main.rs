@@ -52,6 +52,11 @@ enum Command {
     Exec(ExecArgs),
     /// Create a starter agent-ssh.toml in the current directory
     Init(InitArgs),
+    /// Manage interactive SSH sessions
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -118,6 +123,58 @@ struct InitArgs {
     /// Overwrite the file if it already exists.
     #[arg(long)]
     force: bool,
+}
+
+#[derive(Debug, Subcommand)]
+enum SessionCommand {
+    /// Open a new interactive session and print the session ID
+    Open(SessionOpenArgs),
+    /// Execute a command in an existing session
+    Exec(SessionExecArgs),
+    /// Close an existing session
+    Close(SessionCloseArgs),
+    /// List all open sessions
+    List,
+}
+
+#[derive(Debug, Args)]
+struct SessionOpenArgs {
+    #[arg(long)]
+    server: String,
+    /// Session mode: "restricted" (profile-based, default) or "unrestricted" (any command; requires server opt-in + approval)
+    #[arg(long, default_value = "restricted")]
+    mode: String,
+    /// Session TTL in seconds (default: 300, max: 3600)
+    #[arg(long)]
+    ttl: Option<u64>,
+    /// Idle timeout in seconds (default: 60)
+    #[arg(long)]
+    idle_timeout: Option<u64>,
+    /// Approval reference required for unrestricted sessions and approval-gated servers
+    #[arg(long)]
+    approval: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct SessionExecArgs {
+    /// Session ID returned by `session open`
+    #[arg(long)]
+    session: String,
+    /// Profile to run (restricted mode)
+    #[arg(long)]
+    profile: Option<String>,
+    /// Named arguments in key=value form (restricted mode, repeated)
+    #[arg(long = "arg")]
+    args: Vec<String>,
+    /// Raw command to execute (unrestricted mode)
+    #[arg(long)]
+    cmd: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct SessionCloseArgs {
+    /// Session ID to close
+    session: String,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -265,6 +322,77 @@ fn run() -> Result<ExitCode, String> {
                 return Ok(ExitCode::FAILURE);
             }
         }
+
+        Command::Session { command } => match command {
+            SessionCommand::Open(args) => {
+                let mode = parse_session_mode(&args.mode)?;
+                let sm = broker.session_manager();
+                let (result, event) = sm.open_session(agent_ssh_broker::OpenSessionRequest {
+                    actor: cli.actor.clone(),
+                    server_alias: args.server.clone(),
+                    mode,
+                    ttl_seconds: args.ttl,
+                    idle_timeout_seconds: args.idle_timeout,
+                    approval_reference: args.approval.clone(),
+                });
+                logger.append(&event).map_err(|e| e.to_string())?;
+                let session = result.map_err(|e| e.to_string())?;
+                println!("{}", session.id);
+                eprintln!(
+                    "session opened: {} on {} (mode={}, ttl={}s, idle_timeout={}s)",
+                    session.id,
+                    session.server_alias,
+                    session.mode,
+                    session.ttl_seconds,
+                    session.idle_timeout_seconds,
+                );
+            }
+
+            SessionCommand::Exec(args) => {
+                let named_args = parse_named_args(args.args)?;
+                let sm = broker.session_manager();
+                let (result, event) = sm.exec_in_session(agent_ssh_broker::SessionExecRequest {
+                    actor: cli.actor.clone(),
+                    session_id: args.session.clone(),
+                    profile: args.profile.clone(),
+                    args: named_args,
+                    command: args.cmd.clone(),
+                });
+                logger.append(&event).map_err(|e| e.to_string())?;
+                let output = result.map_err(|e| e.to_string())?;
+                print_session_output(&args.session, &output);
+                if output.exit_code != 0 {
+                    return Ok(ExitCode::FAILURE);
+                }
+            }
+
+            SessionCommand::Close(args) => {
+                let sm = broker.session_manager();
+                let (result, event) = sm.close_session(&args.session, &cli.actor);
+                logger.append(&event).map_err(|e| e.to_string())?;
+                result.map_err(|e| e.to_string())?;
+                eprintln!("session closed: {}", args.session);
+            }
+
+            SessionCommand::List => {
+                let sm = broker.session_manager();
+                let sessions = sm.list_sessions();
+                if sessions.is_empty() {
+                    println!("no open sessions");
+                } else {
+                    for session in sessions {
+                        println!(
+                            "{}\tserver={}\tmode={}\tenvironment={}\tttl={}s",
+                            session.id,
+                            session.server_alias,
+                            session.mode,
+                            session.environment,
+                            session.ttl_seconds,
+                        );
+                    }
+                }
+            }
+        },
     }
 
     Ok(ExitCode::SUCCESS)
@@ -299,6 +427,36 @@ fn print_exec_output(plan: &agent_ssh_broker::RunPlan, output: &agent_ssh_broker
         }
     }
 
+    eprintln!("--- exit {} ---", output.exit_code);
+}
+
+fn parse_session_mode(mode: &str) -> Result<agent_ssh_common::SessionMode, String> {
+    match mode {
+        "restricted" => Ok(agent_ssh_common::SessionMode::Restricted),
+        "unrestricted" => Ok(agent_ssh_common::SessionMode::Unrestricted),
+        other => Err(format!(
+            "invalid session mode '{other}'; must be 'restricted' or 'unrestricted'"
+        )),
+    }
+}
+
+fn print_session_output(session_id: &str, output: &agent_ssh_broker::CommandOutput) {
+    eprintln!("--- agent-ssh session exec: {} ---", session_id);
+    if output.stdout.is_empty() {
+        eprintln!("[stdout: empty]");
+    } else {
+        print!("{}", output.stdout);
+        if !output.stdout.ends_with('\n') {
+            println!();
+        }
+    }
+    if !output.stderr.is_empty() {
+        eprintln!("--- stderr ---");
+        eprint!("{}", output.stderr);
+        if !output.stderr.ends_with('\n') {
+            eprintln!();
+        }
+    }
     eprintln!("--- exit {} ---", output.exit_code);
 }
 
@@ -524,6 +682,7 @@ allowed_profiles = ["logs", "disk"]
 # environment = "production"
 # allowed_profiles = ["logs"]
 # requires_approval = true                   # caller must pass --approval <ref>
+# allow_unrestricted_sessions = true         # optional: reuse one broker-held SSH connection for arbitrary commands
 #
 # Example: legacy password compatibility server. The password itself must NOT
 # live in TOML or .env. Instead, store an opaque reference in a sibling .env:

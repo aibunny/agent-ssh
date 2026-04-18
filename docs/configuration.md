@@ -15,10 +15,11 @@
 
 - Server aliases are exact identifiers, not fuzzy labels.
 - `user = "root"` is allowed only as an explicit break-glass exception and is strongly discouraged.
-- This exception changes only the SSH username; it does not permit password fallback, arbitrary shell, or any silent relaxation of other policy checks.
+- This exception changes only the SSH username; it does not by itself permit password fallback, unrestricted sessions, or any silent relaxation of other policy checks.
 - `allowed_profiles` must reference defined profiles.
 - `auth_method` may be omitted or set to `"certificate"` explicitly.
 - `auth_method = "legacy_password"` is compatibility-only and requires `password_secret_ref_env_var`, `legacy_password_acknowledged = true`, and `fail2ban_allowlist_confirmed = true`.
+- `allow_unrestricted_sessions = true` opts a server into broker-held unrestricted sessions, but only when `requires_approval = true` is also set.
 - Plaintext password settings are rejected.
 - `requires_approval = true` blocks protected runs unless an approval reference is provided.
 

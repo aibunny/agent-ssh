@@ -95,6 +95,7 @@ struct AuditContext {
     /// Kind label only; never exposes env var values or raw password material.
     auth_method_kind: Option<String>,
     exit_code: Option<i32>,
+    session_id: Option<String>,
 }
 
 impl Broker {
@@ -125,6 +126,21 @@ impl Broker {
 
     pub fn audit_log_path(&self) -> &Path {
         &self.config.broker.audit_log_path
+    }
+
+    pub fn session_manager(&self) -> crate::session::SessionManager {
+        let data_dir = self
+            .config
+            .broker
+            .audit_log_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
+        crate::session::SessionManager::new(
+            self.config.clone(),
+            self.compiled_profiles.clone(),
+            data_dir,
+        )
     }
 
     pub fn config_validated_event(&self, actor: &str) -> AuditEvent {
@@ -332,6 +348,7 @@ impl Broker {
                     transport: Some("system_ssh".to_string()),
                     auth_method_kind: Some(plan.auth_method_label()),
                     exit_code: Some(output.exit_code),
+                    ..AuditContext::default()
                 },
             ),
             Err(error) => new_audit_event(
@@ -519,6 +536,7 @@ fn new_audit_event(
         transport: context.transport,
         auth_method_kind: context.auth_method_kind,
         exit_code: context.exit_code,
+        session_id: context.session_id,
     }
 }
 

@@ -2,3 +2,5 @@
 /.DS_Store
 /data/*.jsonl
 !/data/.gitkeep
+agent-ssh.toml
+.env
