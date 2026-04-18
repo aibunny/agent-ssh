@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent SSH"
+  short_description: "Brokered SSH for agent workflows"
+  default_prompt: "Use $agent-ssh to operate remote hosts through the agent-ssh broker without exposing credentials."

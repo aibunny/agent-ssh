@@ -2,104 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=../#security" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Security | agent-ssh Docs</title>
-    <meta
-      name="description"
-      content="Security model for agent-ssh, including profile allowlists, approvals, audit logging, root login constraints, and unrestricted session controls."
-    />
+    <title>agent-ssh | security</title>
+    <link rel="canonical" href="../#security" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <a class="brand" href="../">
-          <span class="brand-mark">agent-ssh</span>
-          <span class="brand-tag">GitHub Pages Docs</span>
-        </a>
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../get-started/">Get Started</a>
-          <a href="../reference/">Reference</a>
-          <a class="is-active" href="./">Security</a>
-          <a href="https://github.com/aibunny/agent-ssh">GitHub</a>
-        </nav>
-      </header>
-
-      <main class="docs-layout">
-        <aside class="docs-sidebar">
-          <p class="sidebar-label">Security</p>
-          <a href="#defaults">Secure defaults</a>
-          <a href="#approvals">Approvals</a>
-          <a href="#sessions">Unrestricted sessions</a>
-          <a href="#compat">Legacy compatibility</a>
-        </aside>
-
-        <article class="docs-content">
-          <p class="eyebrow">Security model</p>
-          <h1>Deliberate controls around what can run and when</h1>
-
-          <section id="defaults">
-            <h2>Secure defaults</h2>
-            <ul>
-              <li>Exact alias matching instead of raw host entry.</li>
-              <li>Named profiles instead of free-form shell by default.</li>
-              <li>Publickey-only non-interactive SSH in the secure path.</li>
-              <li>Rendered command and result written to the audit log.</li>
-            </ul>
-          </section>
-
-          <section id="approvals">
-            <h2>Approval gating</h2>
-            <p>
-              A server or profile can require approval before execution. That same
-              approval gate is required for unrestricted sessions.
-            </p>
-            <pre><code>agent-ssh exec \
-  --server prod-web-1 \
-  --profile logs \
-  --arg service=nginx \
-  --arg "since=5 min ago" \
-  --approval CAB-1234</code></pre>
-          </section>
-
-          <section id="sessions">
-            <h2>Unrestricted sessions are explicit, not implied</h2>
-            <p>Arbitrary commands are only available when all of these are true:</p>
-            <ul>
-              <li>The server has <code>allow_unrestricted_sessions = true</code>.</li>
-              <li>The server also has <code>requires_approval = true</code>.</li>
-              <li>The user settings in the agent-facing layer allow arbitrary commands.</li>
-            </ul>
-            <p>
-              That means “run anything” is still policy-bound. It is not silently enabled by
-              using the CLI or agent SDK.
-            </p>
-          </section>
-
-          <section id="compat">
-            <h2>Legacy password compatibility</h2>
-            <p>
-              Legacy password auth exists only as a migration path. Password material must not
-              appear in TOML, CLI args, or audit output, and persistent sessions are not supported
-              in that mode.
-            </p>
-            <p>
-              Root login is also strongly discouraged and only allowed as an explicit break-glass
-              exception with acknowledgment in config.
-            </p>
-          </section>
-        </article>
+    <div class="shell redirect-shell">
+      <main class="redirect-panel">
+        <p class="eyebrow">redirect</p>
+        <h1>Security is part of the one-page docs.</h1>
+        <p>Jump to the guardrails section if you are not redirected automatically.</p>
+        <a class="button button-primary" href="../#security">open security</a>
       </main>
-
-      <footer class="site-footer">
-        <p><a href="../">Back to overview</a></p>
-      </footer>
     </div>
   </body>
 </html>

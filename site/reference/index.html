@@ -2,128 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=../#how" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reference | agent-ssh Docs</title>
-    <meta
-      name="description"
-      content="Reference for agent-ssh configuration, core commands, and unrestricted session settings."
-    />
+    <title>agent-ssh | how it works</title>
+    <link rel="canonical" href="../#how" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <a class="brand" href="../">
-          <span class="brand-mark">agent-ssh</span>
-          <span class="brand-tag">GitHub Pages Docs</span>
-        </a>
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../get-started/">Get Started</a>
-          <a class="is-active" href="./">Reference</a>
-          <a href="../security/">Security</a>
-          <a href="https://github.com/aibunny/agent-ssh">GitHub</a>
-        </nav>
-      </header>
-
-      <main class="docs-layout">
-        <aside class="docs-sidebar">
-          <p class="sidebar-label">Reference</p>
-          <a href="#commands">Commands</a>
-          <a href="#config">Config sections</a>
-          <a href="#sessions">Sessions</a>
-          <a href="#internal-docs">Internal docs</a>
-        </aside>
-
-        <article class="docs-content">
-          <p class="eyebrow">Reference</p>
-          <h1>Commands, configuration, and session controls</h1>
-
-          <section id="commands">
-            <h2>Core commands</h2>
-            <div class="reference-grid">
-              <article class="reference-card">
-                <h3><code>agent-ssh init</code></h3>
-                <p>Create a starter TOML config in the current directory.</p>
-              </article>
-              <article class="reference-card">
-                <h3><code>agent-ssh config validate</code></h3>
-                <p>Parse and validate the config before attempting any SSH activity.</p>
-              </article>
-              <article class="reference-card">
-                <h3><code>agent-ssh exec</code></h3>
-                <p>Run a named profile, capture output, and mirror the remote exit code.</p>
-              </article>
-              <article class="reference-card">
-                <h3><code>agent-ssh session open</code></h3>
-                <p>Open a restricted or unrestricted broker-held session.</p>
-              </article>
-              <article class="reference-card">
-                <h3><code>agent-ssh session exec</code></h3>
-                <p>Execute a named profile or raw command inside an open session.</p>
-              </article>
-              <article class="reference-card">
-                <h3><code>agent-ssh session close</code></h3>
-                <p>Close the broker-held SSH connection and clean up the session record.</p>
-              </article>
-            </div>
-          </section>
-
-          <section id="config">
-            <h2>Top-level config sections</h2>
-            <ul>
-              <li><code>[broker]</code> for certificate TTL, audit log path, and default signer.</li>
-              <li><code>[signers.&lt;name&gt;]</code> for signer definitions.</li>
-              <li><code>[servers.&lt;alias&gt;]</code> for named SSH targets and policy.</li>
-              <li><code>[profiles.&lt;name&gt;]</code> for reusable approved commands.</li>
-            </ul>
-            <pre><code>[servers.prod-web-1]
-host = "10.0.10.21"
-user = "deploy"
-environment = "production"
-allowed_profiles = ["logs"]
-requires_approval = true
-allow_unrestricted_sessions = true</code></pre>
-            <p>
-              <code>allow_unrestricted_sessions = true</code> is the server-side opt-in for
-              arbitrary commands. It only matters when approvals are also required.
-            </p>
-          </section>
-
-          <section id="sessions">
-            <h2>Session behavior</h2>
-            <ul>
-              <li>Restricted sessions use named profiles.</li>
-              <li>Unrestricted sessions accept raw <code>--cmd</code> input.</li>
-              <li>Default TTL is 300 seconds, with a max of 3600 seconds.</li>
-              <li>Default idle timeout is 60 seconds.</li>
-              <li>Persistent sessions are not supported for legacy password auth.</li>
-            </ul>
-          </section>
-
-          <section id="internal-docs">
-            <h2>More repo docs</h2>
-            <p>
-              The Pages site is meant for user-facing docs. For deeper implementation detail,
-              the repository also ships internal docs:
-            </p>
-            <ul>
-              <li><a href="https://github.com/aibunny/agent-ssh/blob/main/docs/configuration.md">Configuration notes</a></li>
-              <li><a href="https://github.com/aibunny/agent-ssh/blob/main/docs/architecture.md">Architecture overview</a></li>
-              <li><a href="https://github.com/aibunny/agent-ssh/blob/main/docs/threat-model.md">Threat model</a></li>
-            </ul>
-          </section>
-        </article>
+    <div class="shell redirect-shell">
+      <main class="redirect-panel">
+        <p class="eyebrow">redirect</p>
+        <h1>Reference content moved to the main page.</h1>
+        <p>Jump to the how it works section if you are not redirected automatically.</p>
+        <a class="button button-primary" href="../#how">open how it works</a>
       </main>
-
-      <footer class="site-footer">
-        <p><a href="../">Back to overview</a></p>
-      </footer>
     </div>
   </body>
 </html>
