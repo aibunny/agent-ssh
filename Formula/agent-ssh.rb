@@ -15,7 +15,7 @@ class AgentSsh < Formula
   desc "Security-first SSH broker — run named commands on named servers without exposing credentials"
   homepage "https://github.com/aibunny/agent-ssh"
   license "MIT"
-  version "0.1.1"
+  version "0.2.0"
 
   # ---------------------------------------------------------------------------
   # Prebuilt binaries — updated automatically by the release workflow.
