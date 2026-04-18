@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Get Started | agent-ssh Docs</title>
+    <meta
+      name="description"
+      content="Set up agent-ssh, validate configuration, run named profiles, and enable unrestricted sessions when user settings and server policy allow it."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="../">
+          <span class="brand-mark">agent-ssh</span>
+          <span class="brand-tag">GitHub Pages Docs</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="is-active" href="./">Get Started</a>
+          <a href="../reference/">Reference</a>
+          <a href="../security/">Security</a>
+          <a href="https://github.com/aibunny/agent-ssh">GitHub</a>
+        </nav>
+      </header>
+
+      <main class="docs-layout">
+        <aside class="docs-sidebar">
+          <p class="sidebar-label">On this page</p>
+          <a href="#install">Install</a>
+          <a href="#create-config">Create config</a>
+          <a href="#run-profile">Run a profile</a>
+          <a href="#open-session">Open a session</a>
+        </aside>
+
+        <article class="docs-content">
+          <p class="eyebrow">Get started</p>
+          <h1>Set up agent-ssh in a few steps</h1>
+          <p class="lead">
+            The default path is straightforward: install the binary, generate a config,
+            validate it, then run named profiles. Unrestricted sessions are there when
+            a user explicitly enables them and the server configuration opts in.
+          </p>
+
+          <section id="install">
+            <h2>1. Install the binary</h2>
+            <p>Use whichever install path matches your environment:</p>
+            <div class="snippet-stack">
+              <pre><code>brew tap aibunny/agent-ssh https://github.com/aibunny/agent-ssh
+brew install agent-ssh</code></pre>
+              <pre><code>curl -fsSL https://raw.githubusercontent.com/aibunny/agent-ssh/main/scripts/install.sh | sh</code></pre>
+              <pre><code>cargo install --git https://github.com/aibunny/agent-ssh agent-ssh-cli</code></pre>
+            </div>
+          </section>
+
+          <section id="create-config">
+            <h2>2. Create and validate a config</h2>
+            <pre><code>agent-ssh init
+agent-ssh config validate</code></pre>
+            <p>
+              The generated <code>agent-ssh.toml</code> includes commented examples for
+              servers, profiles, approvals, and the optional unrestricted-session flag.
+            </p>
+          </section>
+
+          <section id="run-profile">
+            <h2>3. Run a named profile</h2>
+            <p>
+              This is the normal mode. The server defines which profiles are allowed,
+              and the caller gets the full output back.
+            </p>
+            <pre><code>agent-ssh exec --server staging-api --profile disk
+
+agent-ssh exec --server staging-api --profile logs \
+  --arg service=api \
+  --arg "since=10 min ago"</code></pre>
+          </section>
+
+          <section id="open-session">
+            <h2>4. Open an unrestricted session when settings allow it</h2>
+            <p>
+              Arbitrary commands are not the default path. To use them, both of these must be true:
+            </p>
+            <ul>
+              <li>The server has <code>allow_unrestricted_sessions = true</code> and <code>requires_approval = true</code>.</li>
+              <li>The user settings in the agent-facing layer allow arbitrary commands.</li>
+            </ul>
+            <pre><code>[servers.prod-web-1]
+host = "10.0.10.21"
+user = "deploy"
+environment = "production"
+allowed_profiles = ["logs"]
+requires_approval = true
+allow_unrestricted_sessions = true</code></pre>
+            <pre><code>agent-ssh session open \
+  --server prod-web-1 \
+  --mode unrestricted \
+  --approval CAB-1234
+
+agent-ssh session exec \
+  --session &lt;session-id&gt; \
+  --cmd "uname -a && whoami && pwd"</code></pre>
+            <p>
+              The broker keeps that connection alive and multiplexes later commands over
+              the same SSH session until it is closed or expires.
+            </p>
+          </section>
+        </article>
+      </main>
+
+      <footer class="site-footer">
+        <p><a href="../">Back to overview</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>agent-ssh | Brokered SSH for Humans and Agents</title>
+    <meta
+      name="description"
+      content="agent-ssh is a security-first SSH broker for humans and AI agents. Run approved commands, capture full output, and optionally reuse a broker-held SSH connection for unrestricted sessions."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="./">
+          <span class="brand-mark">agent-ssh</span>
+          <span class="brand-tag">GitHub Pages Docs</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="./get-started/">Get Started</a>
+          <a href="./reference/">Reference</a>
+          <a href="./security/">Security</a>
+          <a href="https://github.com/aibunny/agent-ssh">GitHub</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Security-first remote access</p>
+            <h1>Brokered SSH that tells agents exactly what they can do.</h1>
+            <p class="hero-text">
+              <code>agent-ssh</code> lets operators define named servers and approved
+              command profiles once, then gives humans and AI agents a clean way to
+              run them with captured output, audit logs, and optional broker-held
+              persistent sessions.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="./get-started/">Start Using It</a>
+              <a class="button button-secondary" href="./reference/">Read The Reference</a>
+            </div>
+          </div>
+          <div class="hero-panel">
+            <div class="terminal-card">
+              <div class="terminal-bar">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <pre><code>$ agent-ssh exec --server staging-api --profile logs \
+    --arg service=api --arg "since=5 min ago"
+
+--- agent-ssh exec: staging-api  deploy@10.0.1.10:22  profile=logs ---
+Apr 12 10:00:01 staging systemd[1]: Started api.service.
+Apr 12 10:00:02 staging api[1234]: listening on :8080
+--- exit 0 ---</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid-section">
+          <article class="info-card">
+            <p class="card-kicker">What it does</p>
+            <h2>Turns raw SSH access into a brokered interface.</h2>
+            <ul class="feature-list">
+              <li>Maps friendly aliases to real hosts so agents never need host details.</li>
+              <li>Runs named command profiles by default and always captures full output.</li>
+              <li>Supports unrestricted sessions only when the user and server settings allow them.</li>
+            </ul>
+          </article>
+          <article class="info-card accent-card">
+            <p class="card-kicker">Why it matters</p>
+            <h2>Safer than handing an agent an SSH key and hoping for the best.</h2>
+            <p>
+              The broker keeps policy checks, approvals, and audit logging in one
+              place. Operators stay in control, and callers get a simpler interface.
+            </p>
+          </article>
+        </section>
+
+        <section class="steps-section">
+          <div class="section-heading">
+            <p class="eyebrow">How it works</p>
+            <h2>From config file to broker-held session</h2>
+          </div>
+          <div class="steps-grid">
+            <article class="step-card">
+              <span class="step-number">01</span>
+              <h3>Define servers and profiles</h3>
+              <p>
+                Operators configure named servers, approval rules, and safe command
+                profiles in TOML.
+              </p>
+            </article>
+            <article class="step-card">
+              <span class="step-number">02</span>
+              <h3>Run a profile or open a session</h3>
+              <p>
+                Callers use the alias-based CLI or agent layer instead of crafting raw SSH invocations.
+              </p>
+            </article>
+            <article class="step-card">
+              <span class="step-number">03</span>
+              <h3>Capture output and audit everything</h3>
+              <p>
+                Every broker decision and remote command result is written to the audit log.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="code-section">
+          <div class="section-heading">
+            <p class="eyebrow">Quick install</p>
+            <h2>Pick the install path that fits your environment</h2>
+          </div>
+          <div class="install-grid">
+            <article class="snippet-card">
+              <h3>Homebrew</h3>
+              <pre><code>brew tap aibunny/agent-ssh https://github.com/aibunny/agent-ssh
+brew install agent-ssh</code></pre>
+            </article>
+            <article class="snippet-card">
+              <h3>One-line installer</h3>
+              <pre><code>curl -fsSL https://raw.githubusercontent.com/aibunny/agent-ssh/main/scripts/install.sh | sh</code></pre>
+            </article>
+            <article class="snippet-card">
+              <h3>Cargo</h3>
+              <pre><code>cargo install --git https://github.com/aibunny/agent-ssh agent-ssh-cli</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section class="cta-panel">
+          <div>
+            <p class="eyebrow">Next steps</p>
+            <h2>Use profiles by default, then enable unrestricted sessions only when you mean to.</h2>
+            <p>
+              The docs site is organized around setup, command usage, configuration,
+              and security tradeoffs so users can understand what the tool does fast.
+            </p>
+          </div>
+          <div class="cta-actions">
+            <a class="button button-primary" href="./get-started/">Get Started</a>
+            <a class="button button-secondary" href="./security/">Review Security Notes</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>agent-ssh documentation site for GitHub Pages.</p>
+        <p>
+          Built from the repository docs and README.
+          <a href="https://github.com/aibunny/agent-ssh">View source</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

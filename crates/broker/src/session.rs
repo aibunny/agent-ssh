@@ -409,10 +409,9 @@ impl SessionManager {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(BrokerError::SessionIo {
-                source: std::io::Error::new(
-                    ErrorKind::Other,
-                    format!("SSH ControlMaster failed to establish: {stderr}"),
-                ),
+                source: std::io::Error::other(format!(
+                    "SSH ControlMaster failed to establish: {stderr}"
+                )),
             });
         }
 
