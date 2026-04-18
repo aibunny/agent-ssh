@@ -24,6 +24,38 @@ pub struct ProfileRunResult {
     pub output: CommandOutput,
 }
 
+/// User-controlled settings for unrestricted command execution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AgentCommandSettings {
+    /// Explicit user opt-in for arbitrary commands.
+    pub allow_arbitrary_commands: bool,
+    /// Reuse the newest matching unrestricted session when possible.
+    pub reuse_existing_connection: bool,
+    /// Optional requested TTL when opening a new unrestricted session.
+    pub ttl_seconds: Option<u64>,
+    /// Optional requested idle timeout when opening a new unrestricted session.
+    pub idle_timeout_seconds: Option<u64>,
+}
+
+impl Default for AgentCommandSettings {
+    fn default() -> Self {
+        Self {
+            allow_arbitrary_commands: false,
+            reuse_existing_connection: true,
+            ttl_seconds: None,
+            idle_timeout_seconds: None,
+        }
+    }
+}
+
+/// Result of an unrestricted command execution driven by user settings.
+#[derive(Debug, Clone)]
+pub struct AgentCommandResult {
+    pub session_id: String,
+    pub reused_session: bool,
+    pub output: CommandOutput,
+}
+
 /// Agent-friendly wrapper around the broker and session manager.
 #[derive(Debug, Clone)]
 pub struct AgentSshClient {
@@ -174,6 +206,58 @@ impl AgentSshClient {
         self.exec_session(session_id, None, BTreeMap::new(), Some(command.into()))
     }
 
+    /// Run any command when the user's settings explicitly allow it.
+    ///
+    /// If `reuse_existing_connection` is enabled, the client reuses the newest
+    /// unrestricted session for the target server when possible, which keeps
+    /// the SSH connection broker-held and avoids unnecessary reconnects.
+    pub fn run_unrestricted_command_with_settings(
+        &self,
+        server_alias: impl Into<String>,
+        command: impl Into<String>,
+        settings: &AgentCommandSettings,
+        approval_reference: Option<String>,
+    ) -> Result<AgentCommandResult, AgentSshError> {
+        if !settings.allow_arbitrary_commands {
+            return Err(AgentSshError::ArbitraryCommandsDisabledBySettings);
+        }
+
+        let server_alias = server_alias.into();
+        let command = command.into();
+
+        if settings.reuse_existing_connection
+            && let Some(session) = self.reusable_unrestricted_session_for_server(&server_alias)
+        {
+            match self.exec_unrestricted(session.id.clone(), command.clone()) {
+                Ok(output) => {
+                    return Ok(AgentCommandResult {
+                        session_id: session.id,
+                        reused_session: true,
+                        output,
+                    });
+                }
+                Err(AgentSshError::Broker(BrokerError::SessionExpired { .. }))
+                | Err(AgentSshError::Broker(BrokerError::SessionIdleTimeout { .. }))
+                | Err(AgentSshError::Broker(BrokerError::SessionNotFound { .. })) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        let session = self.open_unrestricted_session(
+            server_alias,
+            approval_reference,
+            settings.ttl_seconds,
+            settings.idle_timeout_seconds,
+        )?;
+        let output = self.exec_unrestricted(session.id.clone(), command)?;
+
+        Ok(AgentCommandResult {
+            session_id: session.id,
+            reused_session: false,
+            output,
+        })
+    }
+
     pub fn close_session(&self, session_id: &str) -> Result<(), AgentSshError> {
         let manager = self.broker.session_manager();
         let (result, event) = manager.close_session(session_id, &self.actor);
@@ -201,6 +285,18 @@ impl AgentSshClient {
         self.broker.audit_logger().append(event)?;
         Ok(())
     }
+
+    fn reusable_unrestricted_session_for_server(
+        &self,
+        server_alias: &str,
+    ) -> Option<SessionRecord> {
+        self.list_sessions()
+            .into_iter()
+            .filter(|session| {
+                session.server_alias == server_alias && session.mode == SessionMode::Unrestricted
+            })
+            .max_by_key(|session| session.last_used_at_unix)
+    }
 }
 
 #[derive(Debug, Error)]
@@ -209,6 +305,8 @@ pub enum AgentSshError {
     Config(#[from] ConfigError),
     #[error("{0}")]
     Broker(#[from] BrokerError),
+    #[error("arbitrary commands are disabled by the user's settings")]
+    ArbitraryCommandsDisabledBySettings,
     #[error("failed to read dotenv file at {path}: {source}")]
     DotenvRead {
         path: PathBuf,
@@ -337,7 +435,9 @@ fn is_valid_env_var_name(value: &str) -> bool {
 mod tests {
     use std::{fs, path::PathBuf};
 
-    use super::AgentSshClient;
+    use agent_ssh_common::{SessionMode, SessionRecord};
+
+    use super::{AgentCommandSettings, AgentSshClient};
 
     fn write_config(tempdir: &tempfile::TempDir) -> PathBuf {
         let config_path = tempdir.path().join("agent-ssh.toml");
@@ -373,6 +473,14 @@ template = "df -h"
         fs::read_to_string(tempdir.path().join("audit.jsonl")).expect("read audit log")
     }
 
+    fn write_session_record(tempdir: &tempfile::TempDir, record: &SessionRecord) {
+        let sessions_dir = tempdir.path().join("sessions");
+        fs::create_dir_all(&sessions_dir).expect("sessions dir");
+        let path = sessions_dir.join(format!("{}.json", record.id));
+        let body = serde_json::to_string_pretty(record).expect("serialize session");
+        fs::write(path, body).expect("write session");
+    }
+
     #[test]
     fn open_unrestricted_session_requires_approval_and_records_audit() {
         let tempdir = tempfile::tempdir().expect("tempdir");
@@ -403,5 +511,96 @@ template = "df -h"
             audit.contains("\"session_id\":\"missing-session\""),
             "{audit}"
         );
+    }
+
+    #[test]
+    fn unrestricted_commands_can_be_disabled_by_user_settings() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let config_path = write_config(&tempdir);
+        let client = AgentSshClient::from_config_path(&config_path, "agent").expect("client");
+        let settings = AgentCommandSettings::default();
+
+        let result = client.run_unrestricted_command_with_settings(
+            "staging-api",
+            "uname -a",
+            &settings,
+            Some("CAB-1".to_string()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(super::AgentSshError::ArbitraryCommandsDisabledBySettings)
+        ));
+    }
+
+    #[test]
+    fn reuses_newest_unrestricted_session_for_server() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let config_path = write_config(&tempdir);
+        let client = AgentSshClient::from_config_path(&config_path, "agent").expect("client");
+
+        write_session_record(
+            &tempdir,
+            &SessionRecord {
+                id: "older-session".to_string(),
+                server_alias: "staging-api".to_string(),
+                host: "10.0.1.10".to_string(),
+                port: 22,
+                user: "deploy".to_string(),
+                environment: "staging".to_string(),
+                auth_method_kind: "certificate".to_string(),
+                mode: SessionMode::Unrestricted,
+                opened_at_unix: 4_000_000_000,
+                last_used_at_unix: 4_000_000_100,
+                ttl_seconds: 3600,
+                idle_timeout_seconds: 600,
+                approval_reference: Some("CAB-1".to_string()),
+                control_socket_path: "/tmp/older-session.sock".to_string(),
+            },
+        );
+        write_session_record(
+            &tempdir,
+            &SessionRecord {
+                id: "newest-session".to_string(),
+                server_alias: "staging-api".to_string(),
+                host: "10.0.1.10".to_string(),
+                port: 22,
+                user: "deploy".to_string(),
+                environment: "staging".to_string(),
+                auth_method_kind: "certificate".to_string(),
+                mode: SessionMode::Unrestricted,
+                opened_at_unix: 4_000_000_000,
+                last_used_at_unix: 4_000_000_500,
+                ttl_seconds: 3600,
+                idle_timeout_seconds: 600,
+                approval_reference: Some("CAB-1".to_string()),
+                control_socket_path: "/tmp/newest-session.sock".to_string(),
+            },
+        );
+        write_session_record(
+            &tempdir,
+            &SessionRecord {
+                id: "restricted-session".to_string(),
+                server_alias: "staging-api".to_string(),
+                host: "10.0.1.10".to_string(),
+                port: 22,
+                user: "deploy".to_string(),
+                environment: "staging".to_string(),
+                auth_method_kind: "certificate".to_string(),
+                mode: SessionMode::Restricted,
+                opened_at_unix: 4_000_000_000,
+                last_used_at_unix: 4_000_000_999,
+                ttl_seconds: 3600,
+                idle_timeout_seconds: 600,
+                approval_reference: None,
+                control_socket_path: "/tmp/restricted-session.sock".to_string(),
+            },
+        );
+
+        let selected = client
+            .reusable_unrestricted_session_for_server("staging-api")
+            .expect("should find unrestricted session");
+
+        assert_eq!(selected.id, "newest-session");
     }
 }

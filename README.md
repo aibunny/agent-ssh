@@ -39,7 +39,7 @@ Apr 12 10:00:02 staging api[1234]: listening on :8080
 
 - Maps friendly server aliases to real SSH targets so agents never need raw host details.
 - Runs approved named profiles by default and always returns stdout, stderr, and exit code.
-- Supports approval-gated unrestricted sessions for multi-step agent work that should reuse one broker-held SSH connection.
+- Supports user-controlled, approval-gated unrestricted sessions for multi-step agent work that should reuse one broker-held SSH connection.
 
 ---
 
@@ -136,7 +136,7 @@ staging-api    environment=staging     user=deploy    requires_approval=false
 prod-web-1     environment=production  user=deploy    requires_approval=true
 ```
 
-**Step 5 — if an agent needs arbitrary commands, open a broker-held session**
+**Step 5 — if user settings allow arbitrary commands, open a broker-held session**
 
 First, opt the server in with:
 
